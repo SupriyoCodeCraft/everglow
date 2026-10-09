@@ -1,71 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#10080d" />
-  <meta name="description" content="A little moment, made just for you." />
-  <title>For You, With Love</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070205">
+  <meta name="description" content="A small universe of light, made for you.">
+  <title>For You</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-  <main class="scene" id="scene" aria-label="A romantic message">
-    <div class="ambient ambient--one"></div>
-    <div class="ambient ambient--two"></div>
-    <div class="grain"></div>
-    <canvas id="particles" aria-hidden="true"></canvas>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 
-    <div class="intro" id="intro">
-      <p class="eyebrow" id="eyebrow">A LITTLE SOMETHING, JUST FOR YOU</p>
-      <p class="opening-line" id="openingLine">Some feelings deserve<br><em>their own little universe.</em></p>
+  <!-- Pinned GSAP. If this fails to load, script.js falls back to a calm static composition. -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script defer src="script.js"></script>
+</head>
+
+<body>
+  <main class="stage" id="stage">
+
+    <!-- Atmosphere: base colour, drifting light, rose glow, particles, grain, vignette -->
+    <div class="atmosphere" aria-hidden="true">
+      <div class="atmo-drifts" id="drifts">
+        <div class="atmo-drift atmo-drift--a"></div>
+        <div class="atmo-drift atmo-drift--b"></div>
+      </div>
+      <div class="atmo-glow" id="glow"></div>
+      <div class="atmo-breath"></div>
+      <canvas class="sky" id="sky"></canvas>
+      <div class="atmo-grain"></div>
+      <div class="atmo-vignette"></div>
     </div>
 
-    <section class="reveal" id="reveal" aria-live="polite">
-      <div class="heart-stage" id="heartStage" aria-hidden="true">
-        <div class="heart-halo"></div>
-        <svg class="heart-svg" id="heartSvg" viewBox="0 0 220 200" role="img" aria-label="A glowing heart">
+    <!-- Scene 1: opening sentence (filled from CONFIG) -->
+    <div class="intro" id="intro">
+      <p class="intro__text" id="introText"></p>
+    </div>
+
+    <!-- Scenes 2-4: the heart drawn from light -->
+    <div class="heart-layer" aria-hidden="true">
+      <div class="heart" id="heart">
+        <svg id="heartSvg" viewBox="0 -2 200 180" focusable="false" role="presentation">
           <defs>
-            <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#fff1d4"/>
-              <stop offset="42%" stop-color="#e7b66f"/>
-              <stop offset="100%" stop-color="#bd617b"/>
+            <linearGradient id="goldStroke" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#f9ead0"/>
+              <stop offset=".5" stop-color="#e6c994"/>
+              <stop offset="1" stop-color="#c79c66"/>
             </linearGradient>
-            <filter id="heartGlow" x="-80%" y="-80%" width="260%" height="260%">
-              <feGaussianBlur stdDeviation="3.4" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            <radialGradient id="innerGlow" cx=".5" cy=".42" r=".62">
+              <stop offset="0" stop-color="#f08aa0" stop-opacity=".55"/>
+              <stop offset=".55" stop-color="#9c2a49" stop-opacity=".30"/>
+              <stop offset="1" stop-color="#4a0a1c" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="softBlur" x="-25%" y="-25%" width="150%" height="150%">
+              <feGaussianBlur stdDeviation="5"/>
             </filter>
+            <filter id="fineBlur" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="1.3"/>
+            </filter>
+            <filter id="headBlur" filterUnits="userSpaceOnUse" x="-40" y="-40" width="80" height="80">
+              <feGaussianBlur stdDeviation="5"/>
+            </filter>
+            <filter id="headFine" filterUnits="userSpaceOnUse" x="-20" y="-20" width="40" height="40">
+              <feGaussianBlur stdDeviation="1.2"/>
+            </filter>
+            <!-- Measuring path (no pathLength) used for point-on-path maths -->
+            <path id="heartMeasure" data-heart></path>
           </defs>
-          <path id="heartPath" d="M110 177 C95 163 25 119 25 69 C25 29 74 15 110 57 C146 15 195 29 195 69 C195 119 125 163 110 177 Z"
-                fill="none" stroke="url(#heartGradient)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
-                filter="url(#heartGlow)" pathLength="1000"/>
-          <path class="heart-inner" d="M110 177 C95 163 25 119 25 69 C25 29 74 15 110 57 C146 15 195 29 195 69 C195 119 125 163 110 177 Z"
-                fill="url(#heartGradient)" opacity="0"/>
+
+          <path class="heart__fill"  data-heart></path>
+          <path class="heart__echo"  data-heart></path>
+          <path class="heart__aura"  data-heart pathLength="1"></path>
+          <path class="heart__line"  data-heart pathLength="1"></path>
+          <path class="heart__hot"   data-heart></path>
+          <path class="heart__comet" data-heart pathLength="1"></path>
+
+          <g id="head" class="heart__head">
+            <circle r="10" fill="#e99aa9" opacity=".75" filter="url(#headBlur)"></circle>
+            <circle r="4"  fill="#ffe2b4" opacity=".95" filter="url(#headFine)"></circle>
+            <circle r="1.7" fill="#fff9ee"></circle>
+          </g>
         </svg>
-        <div class="heart-core"></div>
+      </div>
+      <div class="core" id="core"></div>
+    </div>
+
+    <!-- Scenes 5-6: headline, name, message, closing detail -->
+    <div class="finale" id="finale">
+      <div class="title-wrap" id="titleWrap">
+        <h1 class="title" id="title"></h1>
+        <div class="beam" id="beam" aria-hidden="true"></div>
       </div>
 
-      <div class="love-message" id="loveMessage">
-        <p class="message-kicker">IF THE WHOLE WORLD WENT QUIET…</p>
-        <h1 aria-label="I love you"><span class="word">I</span><span class="word">LOVE</span><span class="word">YOU</span></h1>
-        <div class="title-rule"><span></span><i>✦</i><span></span></div>
-        <p class="her-name" id="herName">My favourite person</p>
-        <p class="personal-note" id="personalNote">I'd still find a thousand little ways to choose you.</p>
-        <div class="end-heart" aria-hidden="true">♥</div>
-      </div>
-    </section>
+      <p class="name" id="name">
+        <span class="name__rule" aria-hidden="true"></span>
+        <span class="name__text" id="nameText"></span>
+        <span class="name__rule" aria-hidden="true"></span>
+      </p>
 
-    <p class="signature" id="signature">MADE WITH ALL MY HEART</p>
-    <button class="replay" id="replay" type="button" aria-label="Replay the animation">
-      <span aria-hidden="true">↻</span> Replay the moment
+      <div class="message" id="message"></div>
+
+      <div class="coda" id="coda">
+        <svg class="coda__heart" id="codaHeart" viewBox="0 -2 200 180" aria-hidden="true" focusable="false">
+          <path data-heart></path>
+        </svg>
+        <p class="signature" id="signature"></p>
+      </div>
+    </div>
+
+    <button class="replay" id="replay" type="button" aria-label="Replay the experience" title="Replay">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M20 12a8 8 0 1 1-2.7-6"/>
+        <path d="M20 4.5V9.5h-5"/>
+      </svg>
     </button>
-    <noscript><p class="noscript">This little moment needs JavaScript to come to life.</p></noscript>
   </main>
-
-  <!-- GSAP is loaded from its official CDN. The experience has a graceful fallback if it is unavailable. -->
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-  <script src="./script.js"></script>
 </body>
 </html>
